@@ -49,20 +49,30 @@ const heartLayout = [
 
 type ValentinesProposalProps = {
   handleShowProposal: () => void;
+  showAll: boolean;
 };
 
 export default function PhotoPairGame({
   handleShowProposal,
+  showAll,
 }: ValentinesProposalProps) {
   const [selected, setSelected] = useState<number[]>([]);
   const [matched, setMatched] = useState<number[]>([]);
   const [incorrect, setIncorrect] = useState<number[]>([]);
-  const [images] = useState(() => shuffleArray([...imagePairs]));
-  const [showAll, setShowAll] = useState(false);
+  const [images, setImages] = useState<string[]>([...imagePairs]);
   const [enlargedLeft, setEnlargedLeft] = useState<string | null>(null);
   const [enlargedRight, setEnlargedRight] = useState<string | null>(null);
+  const [cardPosition, setCardPosition] = useState<{
+    left?: { x: number; y: number };
+    right?: { x: number; y: number };
+  }>({});
 
-  const handleClick = async (index: number) => {
+  // Shuffle images after component mounts to avoid hydration mismatch
+  useEffect(() => {
+    setImages(shuffleArray([...imagePairs]));
+  }, []);
+
+  const handleClick = async (index: number, event: React.MouseEvent) => {
     if (
       selected.length === 2 ||
       matched.includes(index) ||
@@ -73,6 +83,15 @@ export default function PhotoPairGame({
 
     if (selected.length === 1) {
       const firstIndex = selected[0];
+      const rect = (event.target as HTMLElement)
+        .closest(".card-wrapper")
+        ?.getBoundingClientRect();
+      if (rect) {
+        setCardPosition((prev) => ({
+          ...prev,
+          right: { x: rect.left, y: rect.top },
+        }));
+      }
       setSelected((prev) => [...prev, index]);
       setEnlargedRight(images[index]); // Show second card on the right
 
@@ -82,6 +101,7 @@ export default function PhotoPairGame({
           setSelected([]);
           setEnlargedLeft(null);
           setEnlargedRight(null);
+          setCardPosition({});
         }, 1000);
       } else {
         await new Promise((resolve) => setTimeout(resolve, 1000)); // Wait 1 second
@@ -92,9 +112,16 @@ export default function PhotoPairGame({
           setSelected([]);
           setEnlargedLeft(null);
           setEnlargedRight(null);
+          setCardPosition({});
         }, 1000);
       }
     } else {
+      const rect = (event.target as HTMLElement)
+        .closest(".card-wrapper")
+        ?.getBoundingClientRect();
+      if (rect) {
+        setCardPosition({ left: { x: rect.left, y: rect.top } });
+      }
       setSelected([index]);
       setEnlargedLeft(images[index]); // Show first card on the left
     }
@@ -110,14 +137,41 @@ export default function PhotoPairGame({
   return (
     <div className="relative flex items-center justify-center gap-2 sm:gap-4 lg:gap-8">
       {/* Увеличенное фото слева */}
-      <div className="w-32 h-48 sm:w-48 sm:h-72 lg:w-64 lg:h-96 flex-shrink-0">
-        {enlargedLeft && (
+      <div
+        className="w-32 h-48 sm:w-48 sm:h-72 lg:w-64 lg:h-96 flex-shrink-0 relative z-50"
+        id="left-enlarged"
+      >
+        {enlargedLeft && cardPosition.left && (
           <motion.div
-            initial={{ opacity: 0, rotateY: -180, scale: 0.8 }}
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+            initial={{
+              x:
+                cardPosition.left.x -
+                (typeof window !== "undefined"
+                  ? document
+                      .getElementById("left-enlarged")
+                      ?.getBoundingClientRect().left || 0
+                  : 0),
+              y:
+                cardPosition.left.y -
+                (typeof window !== "undefined"
+                  ? document
+                      .getElementById("left-enlarged")
+                      ?.getBoundingClientRect().top || 0
+                  : 0),
+              width: "8vh",
+              height: "8vh",
+              rotateY: -180,
+            }}
+            animate={{
+              x: 0,
+              y: 0,
+              width: "100%",
+              height: "100%",
+              rotateY: 0,
+            }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.6 }}
-            className="w-full h-full relative rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl"
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl"
           >
             <Image
               src={enlargedLeft}
@@ -131,15 +185,6 @@ export default function PhotoPairGame({
 
       {/* Игровое поле */}
       <div className="relative flex-shrink-0">
-        {/* Кнопка для показа всех карточек */}
-        <button
-          onClick={() => setShowAll(!showAll)}
-          className="absolute -top-8 sm:-top-12 lg:-top-16 right-2 sm:right-4 px-2 py-1 sm:px-4 sm:py-2 text-xs sm:text-sm text-white bg-gray-700 hover:bg-gray-600 rounded opacity-30 hover:opacity-100 transition-opacity z-50"
-          aria-label="Toggle show all cards"
-        >
-          {showAll ? "Скрыть" : "Показать"}
-        </button>
-
         <div className="grid grid-cols-9 gap-0.5 sm:gap-1 lg:gap-2 max-w-[95vw] mx-auto place-items-center">
           {/* Image preload */}
           <div className="hidden">
@@ -159,9 +204,9 @@ export default function PhotoPairGame({
             index !== null ? (
               <motion.div
                 key={i}
-                className="w-[8vh] h-[8vh] sm:w-[10vh] sm:h-[10vh] lg:w-20 lg:h-20 relative cursor-pointer"
+                className="card-wrapper w-[8vh] h-[8vh] sm:w-[10vh] sm:h-[10vh] lg:w-20 lg:h-20 relative cursor-pointer"
                 whileHover={{ scale: 1.1 }}
-                onClick={() => handleClick(index)}
+                onClick={(e) => handleClick(index, e)}
                 style={{ perspective: "1000px" }} // Add perspective for 3D effect
               >
                 {/* Back of the card */}
@@ -226,14 +271,41 @@ export default function PhotoPairGame({
       </div>
 
       {/* Увеличенное фото справа */}
-      <div className="w-32 h-48 sm:w-48 sm:h-72 lg:w-64 lg:h-96 flex-shrink-0">
-        {enlargedRight && (
+      <div
+        className="w-32 h-48 sm:w-48 sm:h-72 lg:w-64 lg:h-96 flex-shrink-0 relative z-50"
+        id="right-enlarged"
+      >
+        {enlargedRight && cardPosition.right && (
           <motion.div
-            initial={{ opacity: 0, rotateY: 180, scale: 0.8 }}
-            animate={{ opacity: 1, rotateY: 0, scale: 1 }}
+            initial={{
+              x:
+                cardPosition.right.x -
+                (typeof window !== "undefined"
+                  ? document
+                      .getElementById("right-enlarged")
+                      ?.getBoundingClientRect().left || 0
+                  : 0),
+              y:
+                cardPosition.right.y -
+                (typeof window !== "undefined"
+                  ? document
+                      .getElementById("right-enlarged")
+                      ?.getBoundingClientRect().top || 0
+                  : 0),
+              width: "8vh",
+              height: "8vh",
+              rotateY: -180,
+            }}
+            animate={{
+              x: 0,
+              y: 0,
+              width: "100%",
+              height: "100%",
+              rotateY: 0,
+            }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.6 }}
-            className="w-full h-full relative rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl"
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="relative rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden shadow-2xl"
           >
             <Image
               src={enlargedRight}
