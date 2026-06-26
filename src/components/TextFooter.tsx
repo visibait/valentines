@@ -20,13 +20,13 @@ export default function TextFooter() {
       <h1
         className={`absolute right-10 bottom-5 transform -translate-y-1/2 text-white text-4xl lg:text-5xl font-bold leading-tight text-right ${playfairDisplay.className}`}
       >
-        to reveal <br /> <span className="text-gray-400">the surprise</span>
+       just enjoy <br /> <span className="text-gray-400">the game </span>
       </h1>
 
       {/* Copyright */}
       <p className="absolute bottom-5 right-5 text-white text-sm opacity-15 hover:opacity-50">
         © {new Date().getFullYear()}{" "}
-        <Link href="https://visibait.com">visibait.com</Link>
+        <Link href="https://github.com/nuraiymlm">nuraiym</Link>
       </p>
     </>
   );
